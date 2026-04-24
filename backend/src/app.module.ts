@@ -1,0 +1,64 @@
+import { Module } from '@nestjs/common';
+import { MikroOrmModule } from '@mikro-orm/nestjs';
+import { SqliteDriver } from '@mikro-orm/sqlite';
+import { DatabaseModule } from './infrastructure/database/database.module';
+import { SecurityModule } from './infrastructure/security/security.module';
+import { ListController } from './presentation/controllers/list.controller';
+import { CollectionController } from './presentation/controllers/collection.controller';
+import { AuthController } from './presentation/controllers/auth.controller';
+import { UserController } from './presentation/controllers/user.controller';
+import { CreateListUseCase } from './application/use-cases/lists/create-list/create-list.use-case';
+import { GetUserListsUseCase } from './application/use-cases/lists/get-user-lists/get-user-lists.use-case';
+import { GetListByIdUseCase } from './application/use-cases/lists/get-list-by-id/get-list-by-id.use-case';
+import { UpdateListUseCase } from './application/use-cases/lists/update-list/update-list.use-case';
+import { DeleteListUseCase } from './application/use-cases/lists/delete-list/delete-list.use-case';
+import { GetAllCollectionsUseCase } from './application/use-cases/collection/get-all-collections/get-all-collections.use-case';
+import { UpdateCardInCollectionUseCase } from './application/use-cases/collection/update-card-in-collection/update-card-in-collection.use-case';
+import { MarkCardAsNeedUseCase } from './application/use-cases/collection/mark-card-as-need/mark-card-as-need.use-case';
+import { SignUpUseCase } from './application/use-cases/auth/sign-up/sign-up.use-case';
+import { SignInUseCase } from './application/use-cases/auth/sign-in/sign-in.use-case';
+import { GetUserByIdUseCase } from './application/use-cases/user/get-user-by-id/get-user-by-id.use-case';
+import { UpdateUserProfileUseCase } from './application/use-cases/user/update-user-profile/update-user-profile.use-case';
+import { DomainExceptionFilter } from './infrastructure/exceptions/domain-exception.filter';
+import { UserAlreadyExistsFilter } from './infrastructure/exceptions/user-already-exists.filter';
+import { ListAlreadyExistsFilter } from './infrastructure/exceptions/list-already-exists.filter';
+import { ListNotFoundFilter } from './infrastructure/exceptions/list-not-found.filter';
+import { ListAccessDeniedFilter } from './infrastructure/exceptions/list-access-denied.filter';
+import { UserNotFoundFilter } from './infrastructure/exceptions/user-not-found.filter';
+
+@Module({
+  imports: [
+    MikroOrmModule.forRootAsync({
+      useFactory: () => ({
+        driver: SqliteDriver,
+        dbName: process.env.DB_NAME || './sagas.sqlite',
+        autoLoadEntities: true,
+        debug: process.env.NODE_ENV !== 'production',
+      }),
+    }),
+    DatabaseModule,
+    SecurityModule,
+  ],
+  controllers: [ListController, CollectionController, AuthController, UserController],
+  providers: [
+    CreateListUseCase,
+    GetUserListsUseCase,
+    GetListByIdUseCase,
+    UpdateListUseCase,
+    DeleteListUseCase,
+    GetAllCollectionsUseCase,
+    UpdateCardInCollectionUseCase,
+    MarkCardAsNeedUseCase,
+    SignUpUseCase,
+    SignInUseCase,
+    GetUserByIdUseCase,
+    UpdateUserProfileUseCase,
+    DomainExceptionFilter,
+    UserAlreadyExistsFilter,
+    ListAlreadyExistsFilter,
+    ListNotFoundFilter,
+    ListAccessDeniedFilter,
+    UserNotFoundFilter,
+  ],
+})
+export class AppModule {}

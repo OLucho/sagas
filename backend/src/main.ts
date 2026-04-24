@@ -1,0 +1,32 @@
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
+import { DomainExceptionFilter } from './infrastructure/exceptions/domain-exception.filter';
+import { UserAlreadyExistsFilter } from './infrastructure/exceptions/user-already-exists.filter';
+import { ListAlreadyExistsFilter } from './infrastructure/exceptions/list-already-exists.filter';
+import { ListNotFoundFilter } from './infrastructure/exceptions/list-not-found.filter';
+import { ListAccessDeniedFilter } from './infrastructure/exceptions/list-access-denied.filter';
+import { UserNotFoundFilter } from './infrastructure/exceptions/user-not-found.filter';
+import { CollectionCardNotFoundFilter } from './infrastructure/exceptions/collection-card-not-found.filter';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.enableCors({
+    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    credentials: true,
+  });
+  app.useGlobalPipes(
+    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+  );
+  app.useGlobalFilters(
+    new DomainExceptionFilter(),
+    new UserAlreadyExistsFilter(),
+    new ListAlreadyExistsFilter(),
+    new ListNotFoundFilter(),
+    new ListAccessDeniedFilter(),
+    new UserNotFoundFilter(),
+    new CollectionCardNotFoundFilter(),
+  );
+  await app.listen(process.env.PORT ?? 3001);
+}
+bootstrap();
