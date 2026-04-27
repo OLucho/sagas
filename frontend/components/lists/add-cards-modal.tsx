@@ -79,8 +79,8 @@ export function AddCardsModal({
     const ids = Array.from(selectedCardIds);
     const results = await Promise.allSettled(
       ids.map(async (cardId) => {
-        // Default variant when adding to list
-        return addCardToList(listId, cardId, { normal: 1 }, token);
+        // Agregar como "need" (sin variantes seleccionadas)
+        return addCardToList(listId, cardId, {}, token);
       })
     );
 
