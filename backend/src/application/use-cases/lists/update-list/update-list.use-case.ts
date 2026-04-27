@@ -30,6 +30,6 @@ export class UpdateListUseCase {
 
     await this.listRepo.save(list);
 
-    return new UpdateListResponse(list.id, list.userId, list.name, list.isPublic, list.createdAt);
+    return new UpdateListResponse(list.id, list.userId, list.name, list.isPublic, list.createdAt, list.updatedAt);
   }
 }

@@ -93,7 +93,7 @@ export interface UserList {
   id: string;
   name: string;
   isPublic: boolean;
-  ownerId: string;
+  userId: string;
   createdAt: string;
   updatedAt: string;
   cardCount: number;

@@ -11,11 +11,14 @@ interface ListCardProps {
 }
 
 export function ListCard({ list, className }: ListCardProps) {
-  const formattedDate = new Date(list.updatedAt).toLocaleDateString("es-AR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const dateStr = list.updatedAt || list.createdAt;
+  const formattedDate = dateStr
+    ? new Date(dateStr).toLocaleDateString("es-AR", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "Sin fecha";
 
   return (
     <Link

@@ -107,13 +107,14 @@ export async function fetchUserLists(token: string | null): Promise<UserList[]> 
   return response.json();
 }
 
-export async function fetchList(listId: string, token: string | null): Promise<UserList | null> {
+export async function fetchList(listId: string, token: string | null): Promise<UserList> {
   const response = await fetch(`${API_BASE}/lists/${listId}`, {
     headers: getAuthHeaders(token),
   });
   
   if (!response.ok) {
-    return null;
+    const error = await response.json().catch(() => ({ message: 'Error al obtener lista' }));
+    throw new Error(error.message || 'Error al obtener lista');
   }
   
   return response.json();
@@ -200,7 +201,7 @@ export async function addCardToList(
   }
 }
 
-export async function updateCardInList(
+export async function updateListCardVariants(
   listId: string,
   cardId: string,
   variants: UserCardVariants,

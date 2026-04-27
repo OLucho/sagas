@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { useAuth } from "@/lib/auth-context";
 import { fetchAllUserCollections, updateCardInCollection } from "@/lib/api-client";
 import { fetchCardsByIds, getUniqueTypes, getUniqueRarities, getUniqueSupertypes } from "@/lib/pokemon-api";
+import { toast } from "@/hooks/use-toast";
 import type { PokemonCard, CardVariant, CollectionCard, CardFilters } from "@/lib/types";
 
 export function ProfileCollectionTab() {
@@ -131,8 +132,13 @@ export function ProfileCollectionTab() {
 
       try {
         await updateCardInCollection(entry.setId, cardId, nextVariants, token);
-      } catch {
+      } catch (err) {
         mutateCollection();
+        toast({
+          title: "Error al guardar",
+          description: err instanceof Error ? err.message : "No se pudo actualizar la colección. Intenta de nuevo.",
+          variant: "destructive",
+        });
       }
     },
     [collectionEntries, collectionRecord, token, mutateCollection]

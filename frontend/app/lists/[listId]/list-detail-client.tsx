@@ -14,28 +14,45 @@ import {
   Copy,
   Check,
   ExternalLink,
+  X,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CardGrid } from "@/components/cards/card-grid";
 import { CollectionTabs } from "@/components/cards/collection-tabs";
 import { CardFiltersBar } from "@/components/cards/card-filters";
+import { CardDetailModal } from "@/components/cards/card-detail-modal";
 import { EditListModal } from "@/components/lists/edit-list-modal";
-import { DeleteListDialog } from "@/components/lists/delete-list-dialog";
+import { AddCardsModal } from "@/components/lists/add-cards-modal";
 import { ListGridSkeleton } from "@/components/ui/loading-skeleton";
 import { ErrorState, NotFoundState, ForbiddenState } from "@/components/ui/error-state";
-import { NoCardsInListEmptyState } from "@/components/ui/empty-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/lib/auth-context";
-import { fetchList, fetchListCards, updateList, deleteList } from "@/lib/api-client";
-import type { UserList, ListCard, CollectionFilter, CardFilters, CardVariant, CollectionCard, PokemonCard } from "@/lib/types";
-import { getUniqueTypes, getUniqueRarities, getUniqueSupertypes } from "@/lib/pokemon-api";
-import { cn } from "@/lib/utils";
+import {
+  fetchList,
+  fetchListCards,
+  updateListCardVariants,
+  removeCardFromList,
+} from "@/lib/api-client";
+import { fetchCardsByIds, getUniqueTypes, getUniqueRarities, getUniqueSupertypes } from "@/lib/pokemon-api";
+import type {
+  UserList,
+  ListCard,
+  CollectionFilter,
+  CardFilters,
+  CardVariant,
+  CollectionCard,
+  PokemonCard,
+} from "@/lib/types";
+import { toast } from "@/hooks/use-toast";
 
 interface ListDetailClientProps {
   listId: string;
@@ -51,9 +68,12 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
     rarity: [],
     supertype: [],
   });
+  const [selectedCard, setSelectedCard] = useState<PokemonCard | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [addCardsModalOpen, setAddCardsModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [removingCardId, setRemovingCardId] = useState<string | null>(null);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
 
   // Fetch list info
   const {
@@ -61,42 +81,92 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
     error: listError,
     isLoading: listLoading,
     mutate: mutateList,
-  } = useSWR<UserList | null>(`list-${listId}`, () => fetchList(listId, token));
+  } = useSWR<UserList>(`list-${listId}`, () => fetchList(listId, token), {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    shouldRetryOnError: false,
+  });
 
-  // Fetch list cards
+  // Determine ownership
+  const isOwner = isAuthenticated && user && list && list.userId === user.id;
+  const hasAccess = list?.isPublic || isOwner;
+
+  // Fetch list card entries (backend returns id, cardId, variants)
   const {
-    data: listCards,
+    data: listCardEntries,
     error: cardsError,
     isLoading: cardsLoading,
     mutate: mutateCards,
-  } = useSWR<ListCard[]>(`list-cards-${listId}`, () => fetchListCards(listId, token));
+  } = useSWR(
+    list && hasAccess ? `list-cards-${listId}` : null,
+    () => fetchListCards(listId, token),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    }
+  );
 
-  // Check if current user is the owner
-  const isOwner = isAuthenticated && user && list && list.ownerId === user.id;
+  // Fetch full Pokemon TCG card data
+  const cardIds = useMemo(() => listCardEntries?.map((e) => e.cardId) ?? [], [listCardEntries]);
 
-  // Check access permissions
-  const hasAccess = list?.isPublic || isOwner;
+  const {
+    data: cardsData,
+    error: cardsDataError,
+    isLoading: cardsDataLoading,
+    mutate: mutateCardsData,
+  } = useSWR(
+    cardIds.length > 0 ? [`list-card-details-${listId}`, cardIds.join(",")] : null,
+    () => fetchCardsByIds(cardIds),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    }
+  );
 
-  // Extract cards from list cards
-  const cards: PokemonCard[] = useMemo(() => {
-    return listCards?.map((lc) => lc.card).filter(Boolean) || [];
-  }, [listCards]);
+  const pokemonCards = useMemo(() => cardsData?.cards ?? [], [cardsData]);
+  const pokemonCardsById = useMemo(() => {
+    const map = new Map<string, PokemonCard>();
+    pokemonCards.forEach((c) => map.set(c.id, c));
+    return map;
+  }, [pokemonCards]);
 
-  // Create collection record from list cards
+  // Combine list entries with Pokemon card data into ListCard[]
+  const listCards: ListCard[] = useMemo(() => {
+    return (
+      listCardEntries?.
+        map((entry) => {
+          const card = pokemonCardsById.get(entry.cardId);
+          if (!card) return null;
+          return {
+            cardId: entry.cardId,
+            card,
+            variants: entry.variants,
+            addedAt: entry.addedAt,
+          };
+        })
+        .filter(Boolean) as ListCard[]
+    ) ?? [];
+  }, [listCardEntries, pokemonCardsById]);
+
+  // Build collection record for CardGrid (shows variant quantities)
   const collectionRecord = useMemo(() => {
     const record: Record<string, CollectionCard> = {};
-    listCards?.forEach((lc) => {
-      record[lc.cardId] = {
-        cardId: lc.cardId,
-        availableVariants: Object.keys(lc.variants) as CardVariant[],
-        userVariants: lc.variants,
-        status: Object.values(lc.variants).some((v) => v > 0) ? "have" : "none",
+    listCardEntries?.forEach((entry) => {
+      const total = Object.values(entry.variants || {}).reduce((a, b) => a + b, 0);
+      record[entry.cardId] = {
+        cardId: entry.cardId,
+        availableVariants: Object.keys(entry.variants || {}) as CardVariant[],
+        userVariants: entry.variants || {},
+        status: total > 0 ? "have" : "none",
       };
     });
     return record;
-  }, [listCards]);
+  }, [listCardEntries]);
 
-  // Extract filter options
+  const cards = useMemo(() => listCards.map((lc) => lc.card).filter(Boolean), [listCards]);
+
   const availableTypes = useMemo(() => getUniqueTypes(cards), [cards]);
   const availableRarities = useMemo(() => getUniqueRarities(cards), [cards]);
   const availableSupertypes = useMemo(() => getUniqueSupertypes(cards), [cards]);
@@ -106,38 +176,52 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
     return cards.filter((card) => {
       if (cardFilters.search) {
         const query = cardFilters.search.toLowerCase();
-        if (!card.name.toLowerCase().includes(query) && !card.number.includes(query)) {
-          return false;
-        }
+        if (!card.name.toLowerCase().includes(query) && !card.number.includes(query)) return false;
       }
       if (cardFilters.types.length > 0) {
-        if (!card.types?.some((t) => cardFilters.types.includes(t))) {
-          return false;
-        }
+        if (!card.types?.some((t) => cardFilters.types.includes(t))) return false;
       }
       if (cardFilters.rarity.length > 0) {
-        if (!card.rarity || !cardFilters.rarity.includes(card.rarity)) {
-          return false;
-        }
+        if (!card.rarity || !cardFilters.rarity.includes(card.rarity)) return false;
       }
       if (cardFilters.supertype.length > 0) {
-        if (!cardFilters.supertype.includes(card.supertype)) {
-          return false;
-        }
+        if (!cardFilters.supertype.includes(card.supertype)) return false;
       }
       return true;
     });
   }, [cards, cardFilters]);
 
+  // Collection counts
+  const collectionCounts = useMemo(() => {
+    let have = 0;
+    let dupe = 0;
+    filteredCards.forEach((card) => {
+      const data = collectionRecord[card.id];
+      const total = data ? Object.values(data.userVariants).reduce((a, b) => a + b, 0) : 0;
+      if (total > 0) have++;
+      if (total > 1) dupe++;
+    });
+    return {
+      all: filteredCards.length,
+      have,
+      need: filteredCards.length - have,
+      dupe,
+    };
+  }, [filteredCards, collectionRecord]);
+
   // Handlers
   const handleEditList = async (updates: { name?: string; isPublic?: boolean }) => {
-    await updateList(listId, updates, token);
-    mutateList();
-  };
-
-  const handleDeleteList = async () => {
-    await deleteList(listId, token);
-    router.push("/my-lists");
+    try {
+      await fetch(`/api/lists/${listId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(updates),
+      });
+      mutateList();
+      toast({ title: "Lista actualizada" });
+    } catch {
+      toast({ title: "Error al actualizar lista", description: "Intenta de nuevo", variant: "destructive" });
+    }
   };
 
   const handleCopyLink = async () => {
@@ -147,13 +231,59 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleVariantChange = useCallback(
+    async (cardId: string, variant: CardVariant, quantity: number) => {
+      const entry = listCardEntries?.find((e) => e.cardId === cardId);
+      if (!entry || !token) return;
+
+      const nextVariants = { ...entry.variants };
+      if (quantity > 0) nextVariants[variant] = quantity;
+      else delete nextVariants[variant];
+
+      // Optimistic update
+      mutateCards(
+        (current) => {
+          if (!current) return [];
+          return current.map((c) => (c.cardId === cardId ? { ...c, variants: nextVariants } : c));
+        },
+        { revalidate: false }
+      );
+
+      try {
+        await updateListCardVariants(listId, cardId, nextVariants, token);
+      } catch (err) {
+        mutateCards();
+        toast({
+          title: "Error al guardar",
+          description: err instanceof Error ? err.message : "No se pudo actualizar la carta",
+          variant: "destructive",
+        });
+      }
+    },
+    [listCardEntries, token, mutateCards, listId]
+  );
+
+  const handleRemoveCard = async () => {
+    if (!removingCardId || !token) return;
+    try {
+      await removeCardFromList(listId, removingCardId, token);
+      mutateCards();
+      mutateCardsData();
+      toast({ title: "Carta eliminada de la lista" });
+    } catch (err) {
+      toast({
+        title: "Error al eliminar",
+        description: err instanceof Error ? err.message : "No se pudo eliminar la carta",
+        variant: "destructive",
+      });
+    } finally {
+      setRemoveConfirmOpen(false);
+      setRemovingCardId(null);
+    }
+  };
+
   const clearFilters = () => {
-    setCardFilters({
-      search: "",
-      types: [],
-      rarity: [],
-      supertype: [],
-    });
+    setCardFilters({ search: "", types: [], rarity: [], supertype: [] });
     setCollectionFilter("all");
   };
 
@@ -170,19 +300,39 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
     );
   }
 
-  // Not found
-  if (listError || !list) {
+  // Error / Not found / Forbidden
+  if (listError) {
+    const errorMsg = listError instanceof Error ? listError.message : "";
+    if (errorMsg.includes("permiso") || errorMsg.includes("privada")) {
+      return (
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <ForbiddenState
+            title="Lista privada"
+            message="Esta lista es privada y solo puede ser vista por su creador."
+          />
+        </div>
+      );
+    }
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <NotFoundState
-          title="Lista no encontrada"
-          message="La lista que buscas no existe o fue eliminada."
+        <ErrorState
+          title="Error al cargar lista"
+          message={errorMsg || "No pudimos cargar la lista."}
+          onRetry={() => mutateList()}
         />
       </div>
     );
   }
 
-  // No access (private list, not owner)
+  if (!list) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <NotFoundState title="Lista no encontrada" message="La lista que buscas no existe o fue eliminada." />
+      </div>
+    );
+  }
+
+  // No access (private list, not owner) — safety net
   if (!hasAccess) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -194,18 +344,12 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
     );
   }
 
-  // Error loading cards
-  if (cardsError) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <ErrorState
-          title="Error al cargar cartas"
-          message="No pudimos cargar las cartas de esta lista."
-          onRetry={() => mutateCards()}
-        />
-      </div>
-    );
-  }
+  const createdDate = list.createdAt
+    ? new Date(list.createdAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })
+    : "Sin fecha";
+  const updatedDate = list.updatedAt
+    ? new Date(list.updatedAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })
+    : createdDate;
 
   return (
     <>
@@ -224,38 +368,26 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-                {list.name}
-              </h1>
+              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{list.name}</h1>
               <div
-                className={cn(
-                  "flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium",
-                  list.isPublic
-                    ? "bg-success/10 text-success"
-                    : "bg-secondary text-muted-foreground"
-                )}
+                className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+                  list.isPublic ? "bg-success/10 text-success" : "bg-secondary text-muted-foreground"
+                }`}
               >
                 {list.isPublic ? (
                   <>
-                    <Globe className="h-3 w-3" />
-                    Pública
+                    <Globe className="h-3 w-3" /> Pública
                   </>
                 ) : (
                   <>
-                    <Lock className="h-3 w-3" />
-                    Privada
+                    <Lock className="h-3 w-3" /> Privada
                   </>
                 )}
               </div>
             </div>
             <p className="mt-2 text-muted-foreground">
-              {list.cardCount} {list.cardCount === 1 ? "carta" : "cartas"} •
-              Actualizada el{" "}
-              {new Date(list.updatedAt).toLocaleDateString("es-AR", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
+              {listCards.length} {listCards.length === 1 ? "carta" : "cartas"} • Creada el {createdDate}
+              {updatedDate !== createdDate && ` • Actualizada el ${updatedDate}`}
             </p>
           </div>
 
@@ -263,77 +395,51 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
           {isOwner && (
             <div className="flex gap-2">
               {list.isPublic && (
-                <Button
-                  variant="outline"
-                  onClick={handleCopyLink}
-                  className="gap-2"
-                >
+                <Button variant="outline" onClick={handleCopyLink} className="gap-2">
                   {copied ? (
                     <>
-                      <Check className="h-4 w-4" />
-                      Copiado
+                      <Check className="h-4 w-4" /> Copiado
                     </>
                   ) : (
                     <>
-                      <Share2 className="h-4 w-4" />
-                      Compartir
+                      <Share2 className="h-4 w-4" /> Compartir
                     </>
                   )}
                 </Button>
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">Opciones</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setEditModalOpen(true)}>
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Editar lista
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/sets">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Agregar cartas
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setDeleteDialogOpen(true)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Eliminar lista
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button variant="outline" onClick={() => setEditModalOpen(true)}>
+                <Pencil className="mr-2 h-4 w-4" /> Editar
+              </Button>
+              <Button onClick={() => setAddCardsModalOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" /> Agregar cartas
+              </Button>
             </div>
           )}
         </div>
 
-        {/* Empty state */}
-        {(!listCards || listCards.length === 0) && !cardsLoading && (
-          <NoCardsInListEmptyState
-            onAdd={isOwner ? () => router.push("/sets") : undefined}
+        {/* Cards content */}
+        {listCards.length === 0 && !cardsLoading && (
+          <EmptyState
+            icon="card"
+            title="Sin cartas"
+            description="Esta lista aún no tiene cartas."
+            action={
+              isOwner
+                ? { label: "Agregar cartas", onClick: () => setAddCardsModalOpen(true) }
+                : undefined
+            }
           />
         )}
 
-        {/* Content */}
-        {listCards && listCards.length > 0 && (
+        {listCards.length > 0 && (
           <>
-            {/* Collection tabs - only for owner */}
-            {isOwner && (
-              <CollectionTabs
-                activeFilter={collectionFilter}
-                onFilterChange={setCollectionFilter}
-                counts={{
-                  all: filteredCards.length,
-                  have: filteredCards.length,
-                  need: 0,
-                  dupe: Object.keys(collectionRecord).length,
-                }}
-                className="mb-6"
-              />
-            )}
+            {/* Collection tabs */}
+            <CollectionTabs
+              activeFilter={collectionFilter}
+              onFilterChange={setCollectionFilter}
+              counts={collectionCounts}
+              className="mb-6"
+            />
 
             {/* Filters */}
             <CardFiltersBar
@@ -350,17 +456,48 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
               cards={filteredCards}
               collectionRecord={collectionRecord}
               isAuthenticated={isOwner || false}
-              isLoading={cardsLoading}
               filter={collectionFilter}
               searchQuery={cardFilters.search}
+              onCardClick={setSelectedCard}
+              onVariantChange={handleVariantChange}
               onClearFilters={clearFilters}
-              showVariantSelector={false}
             />
+
+            {/* Remove button on top of each card — rendered via CardItem overlay wrapper */}
+            {isOwner && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {listCards.map((lc) => (
+                  <div key={lc.cardId} className="group relative">
+                    <button
+                      onClick={() => {
+                        setRemovingCardId(lc.cardId);
+                        setRemoveConfirmOpen(true);
+                      }}
+                      className="absolute -top-2 -right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-white opacity-0 shadow transition hover:bg-destructive/90 group-hover:opacity-100"
+                      title="Eliminar de la lista"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* Modals */}
+      {/* Modal: Card detail */}
+      {selectedCard && (
+        <CardDetailModal
+          card={selectedCard}
+          collectionData={collectionRecord[selectedCard.id]}
+          isAuthenticated={isOwner || false}
+          onClose={() => setSelectedCard(null)}
+          onVariantChange={handleVariantChange}
+        />
+      )}
+
+      {/* Modal: Edit list */}
       {isOwner && (
         <>
           <EditListModal
@@ -369,14 +506,40 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
             list={list}
             onSubmit={handleEditList}
           />
-          <DeleteListDialog
-            open={deleteDialogOpen}
-            onOpenChange={setDeleteDialogOpen}
-            list={list}
-            onConfirm={handleDeleteList}
+
+          {/* Modal: Add cards */}
+          <AddCardsModal
+            open={addCardsModalOpen}
+            onOpenChange={setAddCardsModalOpen}
+            listId={listId}
+            existingCardIds={new Set(cardIds)}
+            onCardsAdded={() => {
+              mutateCards();
+              mutateCardsData();
+            }}
           />
         </>
       )}
+
+      {/* Dialog: Confirm remove card */}
+      <Dialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>¿Eliminar carta?</DialogTitle>
+            <DialogDescription>
+              Esta acción eliminará la carta de tu lista. No se afectará tu colección.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRemoveConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleRemoveCard}>
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

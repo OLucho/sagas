@@ -17,4 +17,7 @@ export class ListOrmEntity {
 
   @Property()
   createdAt: Date = new Date();
+
+  @Property()
+  updatedAt: Date = new Date();
 }

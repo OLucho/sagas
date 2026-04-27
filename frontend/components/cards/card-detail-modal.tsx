@@ -79,16 +79,18 @@ export function CardDetailModal({
 }: CardDetailModalProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  if (!card) return null;
+  // Guard: parent never renders with null card, but keep hook order safe
+  const safeCard = card;
+  if (!safeCard) return null;
 
-  const availableVariants = getCardVariants(card);
+  const availableVariants = getCardVariants(safeCard);
   const userVariants = collectionData?.userVariants || {};
 
   const handleQuantityChange = (variant: CardVariant, delta: number) => {
     if (!isAuthenticated || !onVariantChange) return;
     const current = (userVariants[variant] || 0);
     const next = Math.max(0, current + delta);
-    onVariantChange(card.id, variant, next);
+    onVariantChange(safeCard.id, variant, next);
   };
 
   // Build card metadata rows

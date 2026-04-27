@@ -9,6 +9,7 @@ export class ListMapper {
       name: entity.name,
       isPublic: entity.isPublic,
       createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
     });
   }
 
@@ -19,6 +20,7 @@ export class ListMapper {
     entity.name = domain.name;
     entity.isPublic = domain.isPublic;
     entity.createdAt = domain.createdAt;
+    entity.updatedAt = domain.updatedAt;
     return entity;
   }
 }

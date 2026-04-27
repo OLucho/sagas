@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { MikroORM } from '@mikro-orm/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DomainExceptionFilter } from './infrastructure/exceptions/domain-exception.filter';
@@ -11,6 +12,11 @@ import { CollectionCardNotFoundFilter } from './infrastructure/exceptions/collec
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  const orm = app.get(MikroORM);
+  await orm.getSchemaGenerator().ensureDatabase();
+  await orm.getSchemaGenerator().updateSchema();
+
   app.enableCors({
     origin: ['http://localhost:3000', 'http://localhost:3001'],
     credentials: true,

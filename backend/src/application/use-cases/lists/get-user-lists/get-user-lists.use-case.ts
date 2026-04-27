@@ -17,5 +17,5 @@ export class GetUserListsUseCase {
 }
 
 function listToResponse(list: List): GetUserListsResponse {
-  return new GetUserListsResponse(list.id, list.userId, list.name, list.isPublic, list.createdAt);
+  return new GetUserListsResponse(list.id, list.userId, list.name, list.isPublic, list.createdAt, list.updatedAt);
 }

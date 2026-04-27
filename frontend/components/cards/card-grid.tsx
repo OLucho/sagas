@@ -14,6 +14,7 @@ interface CardGridProps {
   searchQuery?: string;
   onVariantChange?: (cardId: string, variant: CardVariant, quantity: number) => void;
   onCardClick?: (card: PokemonCard) => void;
+  onRemoveCardClick?: (cardId: string) => void;
   onClearFilters?: () => void;
   showVariantSelector?: boolean;
 }
@@ -27,6 +28,7 @@ export function CardGrid({
   searchQuery = "",
   onVariantChange,
   onCardClick,
+  onRemoveCardClick,
   onClearFilters,
   showVariantSelector = true,
 }: CardGridProps) {
@@ -85,6 +87,7 @@ export function CardGrid({
           isAuthenticated={isAuthenticated}
           onVariantChange={onVariantChange}
           onCardClick={onCardClick}
+          onRemoveCardClick={onRemoveCardClick}
           showVariantSelector={showVariantSelector}
         />
       ))}

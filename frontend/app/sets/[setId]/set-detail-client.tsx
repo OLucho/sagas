@@ -15,6 +15,7 @@ import { ErrorState, NotFoundState } from "@/components/ui/error-state";
 import { useAuth } from "@/lib/auth-context";
 import { fetchSet, fetchSetCards, getUniqueTypes, getUniqueRarities, getUniqueSupertypes } from "@/lib/pokemon-api";
 import { fetchAllUserCollections, updateCardInCollection } from "@/lib/api-client";
+import { toast } from "@/hooks/use-toast";
 import type { PokemonSet, PokemonCard, CollectionFilter, CardFilters, CardVariant, CollectionCard, UserCardVariants } from "@/lib/types";
 
 interface SetDetailClientProps {
@@ -131,33 +132,12 @@ export function SetDetailClient({ setId }: SetDetailClientProps) {
     };
   }, [collectionRecord, filteredCards]);
 
-  // Handle variant changes – use mutator function to avoid stale closure
+  // Handle variant changes – upsert entry if missing, show toast on error
   const handleVariantChange = useCallback(
     async (cardId: string, variant: CardVariant, quantity: number) => {
       if (!isAuthenticated || !token) return;
 
-      // Optimistic update via SWR mutator function
-      mutateAllCollections(
-        (current) => {
-          if (!current) return [];
-          return current.map((entry) => {
-            if (entry.cardId !== cardId || entry.setId !== setId) return entry;
-            const existing = collectionRecord[cardId];
-            const nextVariants: UserCardVariants = existing ? { ...existing.userVariants } : {};
-
-            if (quantity > 0) {
-              (nextVariants as Record<string, number>)[variant] = quantity;
-            } else {
-              delete (nextVariants as Record<string, number>)[variant];
-            }
-
-            return { ...entry, variants: nextVariants };
-          });
-        },
-        { revalidate: false }
-      );
-
-      // Build the same payload for the API
+      // Compute next variants for the API (upsert-aware)
       const existing = collectionRecord[cardId];
       const nextVariantsForApi: UserCardVariants = existing ? { ...existing.userVariants } : {};
       if (quantity > 0) {
@@ -166,11 +146,42 @@ export function SetDetailClient({ setId }: SetDetailClientProps) {
         delete (nextVariantsForApi as Record<string, number>)[variant];
       }
 
+      // Optimistic update via SWR mutator function
+      mutateAllCollections(
+        (current) => {
+          if (!current) return [];
+          const idx = current.findIndex((e) => e.cardId === cardId && e.setId === setId);
+          if (idx !== -1) {
+            // Update existing entry
+            const updated = [...current];
+            updated[idx] = { ...updated[idx], variants: nextVariantsForApi };
+            return updated;
+          }
+          // Upsert new entry for cards not yet in collection
+          return [
+            ...current,
+            {
+              id: `${cardId}-tmp`, // temporary id, will be replaced on revalidate
+              cardId,
+              setId,
+              variants: nextVariantsForApi,
+              needed: false,
+            },
+          ];
+        },
+        { revalidate: false }
+      );
+
       try {
         await updateCardInCollection(setId, cardId, nextVariantsForApi, token);
-      } catch {
+      } catch (err) {
         // Revert by revalidating from server
         mutateAllCollections();
+        toast({
+          title: "Error al guardar",
+          description: err instanceof Error ? err.message : "No se pudo actualizar la colección. Intenta de nuevo.",
+          variant: "destructive",
+        });
       }
     },
     [isAuthenticated, token, mutateAllCollections, setId, collectionRecord]

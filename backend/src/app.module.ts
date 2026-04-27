@@ -14,6 +14,10 @@ import { UpdateListUseCase } from './application/use-cases/lists/update-list/upd
 import { DeleteListUseCase } from './application/use-cases/lists/delete-list/delete-list.use-case';
 import { GetAllCollectionsUseCase } from './application/use-cases/collection/get-all-collections/get-all-collections.use-case';
 import { UpdateCardInCollectionUseCase } from './application/use-cases/collection/update-card-in-collection/update-card-in-collection.use-case';
+import { UpdateListCardUseCase } from './application/use-cases/list-cards/update-list-card/update-list-card.use-case';
+import { AddCardToListUseCase } from './application/use-cases/list-cards/add-card-to-list/add-card-to-list.use-case';
+import { GetListCardsUseCase } from './application/use-cases/list-cards/get-list-cards/get-list-cards.use-case';
+import { RemoveCardFromListUseCase } from './application/use-cases/list-cards/remove-card-from-list/remove-card-from-list.use-case';
 import { MarkCardAsNeedUseCase } from './application/use-cases/collection/mark-card-as-need/mark-card-as-need.use-case';
 import { SignUpUseCase } from './application/use-cases/auth/sign-up/sign-up.use-case';
 import { SignInUseCase } from './application/use-cases/auth/sign-in/sign-in.use-case';
@@ -33,6 +37,7 @@ import { UserNotFoundFilter } from './infrastructure/exceptions/user-not-found.f
         driver: SqliteDriver,
         dbName: process.env.DB_NAME || './sagas.sqlite',
         autoLoadEntities: true,
+        synchronize: true,
         debug: process.env.NODE_ENV !== 'production',
       }),
     }),
@@ -46,6 +51,10 @@ import { UserNotFoundFilter } from './infrastructure/exceptions/user-not-found.f
     GetListByIdUseCase,
     UpdateListUseCase,
     DeleteListUseCase,
+    GetListCardsUseCase,
+    AddCardToListUseCase,
+    UpdateListCardUseCase,
+    RemoveCardFromListUseCase,
     GetAllCollectionsUseCase,
     UpdateCardInCollectionUseCase,
     MarkCardAsNeedUseCase,

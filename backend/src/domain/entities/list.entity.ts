@@ -13,6 +13,7 @@ export interface ReconstructListParams {
   name: string;
   isPublic: boolean;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export class List {
@@ -21,6 +22,7 @@ export class List {
   private _name: string;
   private _isPublic: boolean;
   private readonly _createdAt: Date;
+  private _updatedAt: Date;
 
   private constructor(params: ReconstructListParams) {
     this._id = params.id;
@@ -28,6 +30,7 @@ export class List {
     this._name = params.name;
     this._isPublic = params.isPublic;
     this._createdAt = params.createdAt;
+    this._updatedAt = params.updatedAt;
   }
 
   static create(params: CreateListParams): List {
@@ -40,6 +43,7 @@ export class List {
       name: params.name,
       isPublic: params.isPublic,
       createdAt: new Date(),
+      updatedAt: new Date(),
     });
   }
 
@@ -52,10 +56,12 @@ export class List {
       throw new InvalidListNameException();
     }
     this._name = name;
+    this._updatedAt = new Date();
   }
 
   updateVisibility(isPublic: boolean): void {
     this._isPublic = isPublic;
+    this._updatedAt = new Date();
   }
 
   get id(): string {
@@ -76,5 +82,9 @@ export class List {
 
   get createdAt(): Date {
     return this._createdAt;
+  }
+
+  get updatedAt(): Date {
+    return this._updatedAt;
   }
 }

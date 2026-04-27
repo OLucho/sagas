@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { X } from "lucide-react";
 import { VariantSelector, VariantBadges, VariantCountBadge } from "./variant-selector";
 import { cn } from "@/lib/utils";
 import type { PokemonCard, CardVariant, CollectionCard } from "@/lib/types";
@@ -13,6 +14,7 @@ interface CardItemProps {
   isAuthenticated: boolean;
   onVariantChange?: (cardId: string, variant: CardVariant, quantity: number) => void;
   onCardClick?: (card: PokemonCard) => void;
+  onRemoveCardClick?: (cardId: string) => void;
   showVariantSelector?: boolean;
   className?: string;
 }
@@ -23,6 +25,7 @@ export function CardItem({
   isAuthenticated,
   onVariantChange,
   onCardClick,
+  onRemoveCardClick,
   showVariantSelector = true,
   className,
 }: CardItemProps) {
@@ -37,24 +40,45 @@ export function CardItem({
     onVariantChange?.(card.id, variant, quantity);
   };
 
-  const handleClick = () => {
+  const handleImageClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     onCardClick?.(card);
   };
 
+  const handleRemoveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRemoveCardClick?.(card.id);
+  };
+
   return (
-    <div
-      className={cn(
-        "group flex flex-col cursor-pointer",
-        className
+    <div className={cn("group relative flex flex-col", className)}>
+      {/* Remove button on top-right corner */}
+      {onRemoveCardClick && (
+        <button
+          onClick={handleRemoveClick}
+          className="absolute -top-2 -right-2 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-white opacity-0 shadow transition hover:bg-destructive/90 group-hover:opacity-100"
+          title="Eliminar de la lista"
+        >
+          <X className="h-3 w-3" />
+        </button>
       )}
-      onClick={handleClick}
-    >
+
       {/* Card image with border highlight when owned */}
-      <div 
+      <div
         className={cn(
-          "relative mb-1 aspect-[2.5/3.5] w-full overflow-hidden rounded-lg transition-all",
+          "relative mb-1 aspect-[2.5/3.5] w-full cursor-pointer overflow-hidden rounded-lg transition-all",
           hasCard && "ring-2 ring-emerald-500 ring-offset-1 ring-offset-background"
         )}
+        onClick={handleImageClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onCardClick?.(card);
+          }
+        }}
       >
         {!imageLoaded && (
           <div className="absolute inset-0 animate-pulse rounded-lg bg-secondary" />

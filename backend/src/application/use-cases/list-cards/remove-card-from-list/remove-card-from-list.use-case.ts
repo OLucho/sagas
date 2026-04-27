@@ -1,24 +1,26 @@
 import { Injectable, Inject } from '@nestjs/common';
-import type { IFindListByIdRepository } from './interfaces/find-list-by-id.repository.interface';
-import { GetListByIdResponse } from './get-list-by-id.response.dto';
+import type { IRemoveCardFromListRepository } from './interfaces/remove-card-from-list.repository.interface';
+import type { IFindListByIdRepository } from '../../lists/get-list-by-id/interfaces/find-list-by-id.repository.interface';
 import { ListNotFoundException } from '../../../../domain/exceptions/list-not-found.exception';
 import { ListAccessDeniedException } from '../../../../domain/exceptions/list-access-denied.exception';
 
 @Injectable()
-export class GetListByIdUseCase {
+export class RemoveCardFromListUseCase {
   constructor(
+    @Inject('IRemoveCardFromListRepository')
+    private readonly listCardRepo: IRemoveCardFromListRepository,
     @Inject('IFindListByIdRepository')
     private readonly listRepo: IFindListByIdRepository,
   ) {}
 
-  async execute(listId: string, currentUserId: string | null): Promise<GetListByIdResponse> {
+  async execute(listId: string, cardId: string, userId: string): Promise<void> {
     const list = await this.listRepo.findById(listId);
     if (!list) {
       throw new ListNotFoundException();
     }
-    if (!list.isPublic && list.userId !== currentUserId) {
+    if (list.userId !== userId) {
       throw new ListAccessDeniedException();
     }
-    return new GetListByIdResponse(list.id, list.userId, list.name, list.isPublic, list.createdAt, list.updatedAt);
+    await this.listCardRepo.delete(listId, cardId);
   }
 }

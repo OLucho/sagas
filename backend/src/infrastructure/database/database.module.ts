@@ -3,13 +3,15 @@ import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { UserOrmEntity } from './entities/user.orm-entity';
 import { ListOrmEntity } from './entities/list.orm-entity';
 import { CollectionCardOrmEntity } from './entities/collection-card.orm-entity';
+import { ListCardOrmEntity } from './entities/list-card.orm-entity';
 import { UserRepository } from './repositories/user.repository';
 import { ListRepository } from './repositories/list.repository';
 import { CollectionCardRepository } from './repositories/collection-card.repository';
+import { ListCardRepository } from './repositories/list-card.repository';
 
 @Module({
   imports: [
-    MikroOrmModule.forFeature([UserOrmEntity, ListOrmEntity, CollectionCardOrmEntity]),
+    MikroOrmModule.forFeature([UserOrmEntity, ListOrmEntity, CollectionCardOrmEntity, ListCardOrmEntity]),
   ],
   providers: [
     {
@@ -64,6 +66,22 @@ import { CollectionCardRepository } from './repositories/collection-card.reposit
       provide: 'IFindAllCollectionsRepository',
       useClass: CollectionCardRepository,
     },
+    {
+      provide: 'IGetListCardsRepository',
+      useClass: ListCardRepository,
+    },
+    {
+      provide: 'IAddCardToListRepository',
+      useClass: ListCardRepository,
+    },
+    {
+      provide: 'IUpdateListCardRepository',
+      useClass: ListCardRepository,
+    },
+    {
+      provide: 'IRemoveCardFromListRepository',
+      useClass: ListCardRepository,
+    },
   ],
   exports: [
     'ICreateUserRepository',
@@ -79,6 +97,10 @@ import { CollectionCardRepository } from './repositories/collection-card.reposit
     'ISaveCollectionCardRepository',
     'IFindCollectionBySetRepository',
     'IFindAllCollectionsRepository',
+    'IGetListCardsRepository',
+    'IAddCardToListRepository',
+    'IUpdateListCardRepository',
+    'IRemoveCardFromListRepository',
   ],
 })
 export class DatabaseModule {}
