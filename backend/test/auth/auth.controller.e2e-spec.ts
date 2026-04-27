@@ -39,7 +39,7 @@ describe('Auth Controller (e2e)', () => {
         .expect(409)
         .then((response) => {
           expect(response.body.statusCode).toBe(409);
-          expect(response.body.message).toBe('User with this email already exists');
+          expect(response.body.message).toBe('Ya existe un usuario con este email');
         });
     });
 
@@ -131,7 +131,7 @@ describe('Auth Controller (e2e)', () => {
         })
         .expect(400)
         .then((response) => {
-          expect(response.body.message).toBe('Invalid email or password');
+          expect(response.body.message).toBe('Email o contraseña incorrectos');
         });
     });
 
@@ -144,7 +144,7 @@ describe('Auth Controller (e2e)', () => {
         })
         .expect(400)
         .then((response) => {
-          expect(response.body.message).toBe('Invalid email or password');
+          expect(response.body.message).toBe('Email o contraseña incorrectos');
         });
     });
 

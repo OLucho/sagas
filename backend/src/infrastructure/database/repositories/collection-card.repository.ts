@@ -25,8 +25,18 @@ export class CollectionCardRepository implements
 
   async save(card: CollectionCard): Promise<void> {
     await this.em.transactional(async (em) => {
-      const entity = CollectionCardMapper.toOrm(card);
-      em.persist(entity);
+      const existing = await em.findOne(CollectionCardOrmEntity, { id: card.id });
+      if (existing) {
+        existing.userId = card.userId;
+        existing.cardId = card.cardId;
+        existing.setId = card.setId;
+        existing.variants = card.variants;
+        existing.needed = card.needed;
+        em.persist(existing);
+      } else {
+        const entity = CollectionCardMapper.toOrm(card);
+        em.persist(entity);
+      }
       await em.flush();
     });
   }
