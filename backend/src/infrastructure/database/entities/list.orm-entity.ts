@@ -18,6 +18,6 @@ export class ListOrmEntity {
   @Property()
   createdAt: Date = new Date();
 
-  @Property()
-  updatedAt: Date = new Date();
+  @Property({ nullable: true })
+  updatedAt: Date | null = null;
 }

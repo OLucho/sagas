@@ -170,7 +170,9 @@ export async function deleteList(listId: string, token: string | null): Promise<
   }
 }
 
-export async function fetchListCards(listId: string, token: string | null): Promise<ListCard[]> {
+export async function fetchListCards(listId: string, token: string | null): Promise<
+  Array<{ id: string; listId: string; cardId: string; variants: Record<string, number>; addedAt: string }>
+> {
   const response = await fetch(`${API_BASE}/lists/${listId}/cards`, {
     headers: getAuthHeaders(token),
   });
