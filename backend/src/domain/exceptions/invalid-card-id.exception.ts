@@ -2,6 +2,6 @@ import { DomainException } from './domain.exception';
 
 export class InvalidCardIdException extends DomainException {
   constructor() {
-    super('Card ID is required');
+    super('El ID de la carta es obligatorio');
   }
 }

@@ -2,6 +2,6 @@ import { DomainException } from './domain.exception';
 
 export class InvalidListNameException extends DomainException {
   constructor() {
-    super('List name is required');
+    super('El nombre de la lista es obligatorio');
   }
 }

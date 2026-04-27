@@ -69,7 +69,8 @@ export async function fetchCurrentUser(token: string | null): Promise<User | nul
 
   if (!response.ok) {
     if (response.status === 404) return null;
-    throw new Error('Error al obtener perfil');
+    const error = await response.json().catch(() => ({ message: 'Error al obtener perfil' }));
+    throw new Error(error.message || 'Error al obtener perfil');
   }
 
   return response.json();
@@ -99,7 +100,8 @@ export async function fetchUserLists(token: string | null): Promise<UserList[]> 
   });
   
   if (!response.ok) {
-    throw new Error('Error al obtener listas');
+    const error = await response.json().catch(() => ({ message: 'Error al obtener listas' }));
+    throw new Error(error.message || 'Error al obtener listas');
   }
   
   return response.json();
@@ -129,7 +131,8 @@ export async function createList(
   });
   
   if (!response.ok) {
-    throw new Error('Error al crear lista');
+    const error = await response.json().catch(() => ({ message: 'Error al crear lista' }));
+    throw new Error(error.message || 'Error al crear lista');
   }
   
   return response.json();
@@ -147,7 +150,8 @@ export async function updateList(
   });
   
   if (!response.ok) {
-    throw new Error('Error al actualizar lista');
+    const error = await response.json().catch(() => ({ message: 'Error al actualizar lista' }));
+    throw new Error(error.message || 'Error al actualizar lista');
   }
   
   return response.json();
@@ -160,7 +164,8 @@ export async function deleteList(listId: string, token: string | null): Promise<
   });
   
   if (!response.ok) {
-    throw new Error('Error al eliminar lista');
+    const error = await response.json().catch(() => ({ message: 'Error al eliminar lista' }));
+    throw new Error(error.message || 'Error al eliminar lista');
   }
 }
 
@@ -170,7 +175,8 @@ export async function fetchListCards(listId: string, token: string | null): Prom
   });
   
   if (!response.ok) {
-    throw new Error('Error al obtener cartas');
+    const error = await response.json().catch(() => ({ message: 'Error al obtener cartas' }));
+    throw new Error(error.message || 'Error al obtener cartas');
   }
   
   return response.json();
@@ -189,7 +195,8 @@ export async function addCardToList(
   });
   
   if (!response.ok) {
-    throw new Error('Error al agregar carta');
+    const error = await response.json().catch(() => ({ message: 'Error al agregar carta' }));
+    throw new Error(error.message || 'Error al agregar carta');
   }
 }
 
@@ -206,7 +213,8 @@ export async function updateCardInList(
   });
   
   if (!response.ok) {
-    throw new Error('Error al actualizar carta');
+    const error = await response.json().catch(() => ({ message: 'Error al actualizar carta' }));
+    throw new Error(error.message || 'Error al actualizar carta');
   }
 }
 
@@ -221,7 +229,8 @@ export async function removeCardFromList(
   });
   
   if (!response.ok) {
-    throw new Error('Error al eliminar carta');
+    const error = await response.json().catch(() => ({ message: 'Error al eliminar carta' }));
+    throw new Error(error.message || 'Error al eliminar carta');
   }
 }
 
@@ -241,7 +250,8 @@ export async function fetchAllUserCollections(
   });
 
   if (!response.ok) {
-    throw new Error('No pudimos cargar tu colección. Intenta de nuevo.');
+    const error = await response.json().catch(() => ({ message: 'No pudimos cargar tu colección. Intenta de nuevo.' }));
+    throw new Error(error.message || 'No pudimos cargar tu colección. Intenta de nuevo.');
   }
 
   return response.json();
@@ -260,7 +270,8 @@ export async function updateCardInCollection(
   });
   
   if (!response.ok) {
-    throw new Error('Error al actualizar colección');
+    const error = await response.json().catch(() => ({ message: 'Error al actualizar colección' }));
+    throw new Error(error.message || 'Error al actualizar colección');
   }
 }
 
@@ -275,6 +286,7 @@ export async function markCardAsNeed(
   });
   
   if (!response.ok) {
-    throw new Error('Error al marcar carta');
+    const error = await response.json().catch(() => ({ message: 'Error al marcar carta' }));
+    throw new Error(error.message || 'Error al marcar carta');
   }
 }
