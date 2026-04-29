@@ -16,6 +16,8 @@ import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 import { LoginModal } from "@/components/auth/login-modal";
 import { SignupModal } from "@/components/auth/signup-modal";
+import { ForgotPasswordModal } from "@/components/auth/forgot-password-modal";
+import { ResetPasswordModal } from "@/components/auth/reset-password-modal";
 
 const navigation = [
   { name: "Sets", href: "/sets", icon: Layers },
@@ -28,6 +30,8 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [signupModalOpen, setSignupModalOpen] = useState(false);
+  const [forgotPasswordModalOpen, setForgotPasswordModalOpen] = useState(false);
+  const [resetPasswordModalOpen, setResetPasswordModalOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -221,8 +225,24 @@ export function Header() {
         )}
       </header>
 
-      <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} onSignupClick={() => setSignupModalOpen(true)} />
+      <LoginModal
+        open={loginModalOpen}
+        onOpenChange={setLoginModalOpen}
+        onSignupClick={() => setSignupModalOpen(true)}
+        onForgotPasswordClick={() => setForgotPasswordModalOpen(true)}
+      />
       <SignupModal open={signupModalOpen} onOpenChange={setSignupModalOpen} onLoginClick={() => setLoginModalOpen(true)} />
+      <ForgotPasswordModal
+        open={forgotPasswordModalOpen}
+        onOpenChange={setForgotPasswordModalOpen}
+        onLoginClick={() => setLoginModalOpen(true)}
+        onResetPasswordClick={() => setResetPasswordModalOpen(true)}
+      />
+      <ResetPasswordModal
+        open={resetPasswordModalOpen}
+        onOpenChange={setResetPasswordModalOpen}
+        onLoginClick={() => setLoginModalOpen(true)}
+      />
     </>
   );
 }

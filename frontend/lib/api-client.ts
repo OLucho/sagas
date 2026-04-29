@@ -62,6 +62,40 @@ export async function signIn(
   return response.json();
 }
 
+export async function requestPasswordReset(email: string): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Error al solicitar recuperación' }));
+    throw new Error(error.message || 'Error al solicitar recuperación');
+  }
+
+  return response.json();
+}
+
+export async function resetPassword(
+  email: string,
+  code: string,
+  password: string
+): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code, password }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Error al restablecer contraseña' }));
+    throw new Error(error.message || 'Error al restablecer contraseña');
+  }
+
+  return response.json();
+}
+
 export async function fetchCurrentUser(token: string | null): Promise<User | null> {
   const response = await fetch(`${API_BASE}/users/me`, {
     headers: getAuthHeaders(token),
