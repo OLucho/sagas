@@ -18,13 +18,23 @@ interface LoginModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSignupClick?: () => void;
+  onForgotPasswordClick?: () => void;
 }
 
-export function LoginModal({ open, onOpenChange, onSignupClick }: LoginModalProps) {
+export function LoginModal({ open, onOpenChange, onSignupClick, onForgotPasswordClick }: LoginModalProps) {
   const { login, isLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  const handleClose = (value: boolean) => {
+    if (!value) {
+      setEmail("");
+      setPassword("");
+      setError("");
+    }
+    onOpenChange(value);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,16 +42,14 @@ export function LoginModal({ open, onOpenChange, onSignupClick }: LoginModalProp
 
     try {
       await login(email, password);
-      onOpenChange(false);
-      setEmail("");
-      setPassword("");
+      handleClose(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al iniciar sesión");
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Iniciar sesión</DialogTitle>
@@ -63,7 +71,19 @@ export function LoginModal({ open, onOpenChange, onSignupClick }: LoginModalProp
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Contraseña</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Contraseña</Label>
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={() => {
+                  handleClose(false);
+                  onForgotPasswordClick?.();
+                }}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
             <Input
               id="password"
               type="password"
@@ -94,7 +114,7 @@ export function LoginModal({ open, onOpenChange, onSignupClick }: LoginModalProp
                 type="button"
                 className="text-primary hover:underline"
                 onClick={() => {
-                  onOpenChange(false);
+                  handleClose(false);
                   onSignupClick?.();
                 }}
               >

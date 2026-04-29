@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { VariantSelector, VariantBadges, VariantCountBadge } from "./variant-selector";
 import { cn } from "@/lib/utils";
 import type { PokemonCard, CardVariant, CollectionCard } from "@/lib/types";
@@ -15,6 +15,7 @@ interface CardItemProps {
   onVariantChange?: (cardId: string, variant: CardVariant, quantity: number) => void;
   onCardClick?: (card: PokemonCard) => void;
   onRemoveCardClick?: (cardId: string) => void;
+  isUpdating?: boolean;
   showVariantSelector?: boolean;
   className?: string;
 }
@@ -26,6 +27,7 @@ export function CardItem({
   onVariantChange,
   onCardClick,
   onRemoveCardClick,
+  isUpdating,
   showVariantSelector = true,
   className,
 }: CardItemProps) {
@@ -106,8 +108,12 @@ export function CardItem({
             availableVariants={availableVariants}
             userVariants={userVariants}
             onVariantChange={handleVariantChange}
+            disabled={isUpdating}
           />
-          <VariantCountBadge count={availableVariants.length} />
+          <div className="flex items-center gap-1">
+            {isUpdating && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+            <VariantCountBadge count={availableVariants.length} />
+          </div>
         </div>
       )}
 

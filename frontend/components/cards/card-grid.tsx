@@ -10,6 +10,7 @@ interface CardGridProps {
   collectionRecord: Record<string, CollectionCard>;
   isAuthenticated: boolean;
   isLoading?: boolean;
+  variantUpdatingCardId?: string | null;
   filter?: CollectionFilter;
   searchQuery?: string;
   onVariantChange?: (cardId: string, variant: CardVariant, quantity: number) => void;
@@ -24,6 +25,7 @@ export function CardGrid({
   collectionRecord,
   isAuthenticated,
   isLoading = false,
+  variantUpdatingCardId,
   filter = "all",
   searchQuery = "",
   onVariantChange,
@@ -85,6 +87,7 @@ export function CardGrid({
           card={card}
           collectionData={collectionRecord[card.id]}
           isAuthenticated={isAuthenticated}
+          isUpdating={variantUpdatingCardId === card.id}
           onVariantChange={onVariantChange}
           onCardClick={onCardClick}
           onRemoveCardClick={onRemoveCardClick}

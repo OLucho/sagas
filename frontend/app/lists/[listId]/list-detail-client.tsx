@@ -10,6 +10,7 @@ import {
   Globe,
   Lock,
   Plus,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,11 +67,14 @@ export default function ListDetailClient({ listId }: { listId: string }) {
   const [copied, setCopied] = useState(false);
   const [removingCardId, setRemovingCardId] = useState<string | null>(null);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [updatingVariantCardId, setUpdatingVariantCardId] = useState<string | null>(null);
 
   const {
     data: combined,
     error,
     isLoading,
+    isValidating,
     mutate: mutateCombined,
   } = useSWR<CombinedListData | null>(
     [`list-detail`, listId, token],
@@ -175,6 +179,7 @@ export default function ListDetailClient({ listId }: { listId: string }) {
 
   const handleRemoveCard = async () => {
     if (!removingCardId || !token) return;
+    setIsRemoving(true);
     try {
       await removeCardFromList(listId, removingCardId, token);
       mutateCombined();
@@ -182,6 +187,7 @@ export default function ListDetailClient({ listId }: { listId: string }) {
     } catch (err: any) {
       toast({ title: "Error al eliminar", description: err.message, variant: "destructive" });
     } finally {
+      setIsRemoving(false);
       setRemoveConfirmOpen(false);
       setRemovingCardId(null);
     }
@@ -195,6 +201,8 @@ export default function ListDetailClient({ listId }: { listId: string }) {
       const nextVariants = { ...entry.userVariants };
       if (quantity > 0) nextVariants[variant] = quantity;
       else delete nextVariants[variant];
+
+      setUpdatingVariantCardId(cardId);
 
       // Optimistic update
       mutateCombined(
@@ -224,6 +232,8 @@ export default function ListDetailClient({ listId }: { listId: string }) {
       } catch (_e) {
         mutateCombined();
         toast({ title: "Error al guardar", description: "No se pudo actualizar la carta", variant: "destructive" });
+      } finally {
+        setUpdatingVariantCardId(null);
       }
     },
     [collectionRecord, token, mutateCombined, listId]
@@ -306,16 +316,14 @@ export default function ListDetailClient({ listId }: { listId: string }) {
                   list.isPublic ? "bg-success/10 text-success" : "bg-secondary text-muted-foreground"
                 }`}
               >
-                {list.isPublic ? (
-                  <>
-                    <Globe className="h-3 w-3" /> Pública
-                  </>
-                ) : (
-                  <>
-                    <Lock className="h-3 w-3" /> Privada
-                  </>
-                )}
+                {list.isPublic ? <><Globe className="h-3 w-3" /> Pública</> : <><Lock className="h-3 w-3" /> Privada</>}
               </div>
+              {isValidating && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Actualizando...
+                </span>
+              )}
             </div>
             <p className="mt-2 text-muted-foreground">
               {listCards.length} {listCards.length === 1 ? "carta" : "cartas"} • Creada el {createdDate}
@@ -371,6 +379,7 @@ export default function ListDetailClient({ listId }: { listId: string }) {
               cards={filteredCards}
               collectionRecord={collectionRecord}
               isAuthenticated={isOwner || false}
+              variantUpdatingCardId={updatingVariantCardId}
               filter={collectionFilter}
               searchQuery={cardFilters.search}
               onCardClick={setSelectedCard}
@@ -427,8 +436,17 @@ export default function ListDetailClient({ listId }: { listId: string }) {
             <DialogDescription>Esta acción eliminará la carta de tu lista. No se afectará tu colección.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setRemoveConfirmOpen(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleRemoveCard}>Eliminar</Button>
+            <Button variant="ghost" onClick={() => setRemoveConfirmOpen(false)} disabled={isRemoving}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleRemoveCard} disabled={isRemoving}>
+              {isRemoving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

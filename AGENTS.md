@@ -196,8 +196,13 @@ export class UserMapper {
 
 ### 3. Security implementations
 - `BCryptPasswordHasher` implements `IPasswordHasher`
+- `HmacTokenHasher` implements `ITokenHasher`
 - `JwtTokenService` implements `IAuthTokenService`
 - Authentication use cases inject these interfaces, never raw libraries
+
+> **Token vs Password hashing**: Use `ITokenHasher` (fast HMAC-SHA256) for short-lived, single-use secrets (e.g. 6-digit reset codes). Use `IPasswordHasher` (slow bcrypt) for persisted user passwords.
+>
+> Rationale: bcrypt's cost factor is intentional for passwords (offline attack resistance), but is overkill and a DoS vector for tokens that are already rate-limited and time-bounded.
 
 ---
 
