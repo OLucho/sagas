@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { SqliteDriver } from '@mikro-orm/sqlite';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { SecurityModule } from './infrastructure/security/security.module';
+import { EmailModule } from './infrastructure/services/email.module';
 import { ListController } from './presentation/controllers/list.controller';
 import { CollectionController } from './presentation/controllers/collection.controller';
 import { AuthController } from './presentation/controllers/auth.controller';
@@ -21,6 +24,8 @@ import { RemoveCardFromListUseCase } from './application/use-cases/list-cards/re
 import { MarkCardAsNeedUseCase } from './application/use-cases/collection/mark-card-as-need/mark-card-as-need.use-case';
 import { SignUpUseCase } from './application/use-cases/auth/sign-up/sign-up.use-case';
 import { SignInUseCase } from './application/use-cases/auth/sign-in/sign-in.use-case';
+import { RequestPasswordResetUseCase } from './application/use-cases/auth/request-password-reset/request-password-reset.use-case';
+import { ResetPasswordUseCase } from './application/use-cases/auth/reset-password/reset-password.use-case';
 import { GetUserByIdUseCase } from './application/use-cases/user/get-user-by-id/get-user-by-id.use-case';
 import { UpdateUserProfileUseCase } from './application/use-cases/user/update-user-profile/update-user-profile.use-case';
 import { DomainExceptionFilter } from './infrastructure/exceptions/domain-exception.filter';
@@ -41,8 +46,10 @@ import { UserNotFoundFilter } from './infrastructure/exceptions/user-not-found.f
         debug: process.env.NODE_ENV !== 'production',
       }),
     }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     DatabaseModule,
     SecurityModule,
+    EmailModule,
   ],
   controllers: [ListController, CollectionController, AuthController, UserController],
   providers: [
@@ -60,6 +67,8 @@ import { UserNotFoundFilter } from './infrastructure/exceptions/user-not-found.f
     MarkCardAsNeedUseCase,
     SignUpUseCase,
     SignInUseCase,
+    RequestPasswordResetUseCase,
+    ResetPasswordUseCase,
     GetUserByIdUseCase,
     UpdateUserProfileUseCase,
     DomainExceptionFilter,
@@ -68,6 +77,10 @@ import { UserNotFoundFilter } from './infrastructure/exceptions/user-not-found.f
     ListNotFoundFilter,
     ListAccessDeniedFilter,
     UserNotFoundFilter,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

@@ -4,14 +4,16 @@ import { UserOrmEntity } from './entities/user.orm-entity';
 import { ListOrmEntity } from './entities/list.orm-entity';
 import { CollectionCardOrmEntity } from './entities/collection-card.orm-entity';
 import { ListCardOrmEntity } from './entities/list-card.orm-entity';
+import { PasswordResetTokenOrmEntity } from './entities/password-reset-token.orm-entity';
 import { UserRepository } from './repositories/user.repository';
 import { ListRepository } from './repositories/list.repository';
 import { CollectionCardRepository } from './repositories/collection-card.repository';
 import { ListCardRepository } from './repositories/list-card.repository';
+import { PasswordResetTokenRepository } from './repositories/password-reset-token.repository';
 
 @Module({
   imports: [
-    MikroOrmModule.forFeature([UserOrmEntity, ListOrmEntity, CollectionCardOrmEntity, ListCardOrmEntity]),
+    MikroOrmModule.forFeature([UserOrmEntity, ListOrmEntity, CollectionCardOrmEntity, ListCardOrmEntity, PasswordResetTokenOrmEntity]),
   ],
   providers: [
     {
@@ -82,6 +84,18 @@ import { ListCardRepository } from './repositories/list-card.repository';
       provide: 'IRemoveCardFromListRepository',
       useClass: ListCardRepository,
     },
+    {
+      provide: 'ISavePasswordResetTokenRepository',
+      useClass: PasswordResetTokenRepository,
+    },
+    {
+      provide: 'IFindPasswordResetTokenByUserIdRepository',
+      useClass: PasswordResetTokenRepository,
+    },
+    {
+      provide: 'IResetPasswordAtomicRepository',
+      useClass: UserRepository,
+    },
   ],
   exports: [
     'ICreateUserRepository',
@@ -101,6 +115,9 @@ import { ListCardRepository } from './repositories/list-card.repository';
     'IAddCardToListRepository',
     'IUpdateListCardRepository',
     'IRemoveCardFromListRepository',
+    'ISavePasswordResetTokenRepository',
+    'IFindPasswordResetTokenByUserIdRepository',
+    'IResetPasswordAtomicRepository',
   ],
 })
 export class DatabaseModule {}

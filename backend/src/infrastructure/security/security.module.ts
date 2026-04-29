@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { BCryptPasswordHasher } from './bcrypt-password.service';
 import { JwtTokenService } from './jwt-token.service';
-
+import { HmacTokenHasher } from './hmac-token-hasher.service';
+ 
 @Module({
   providers: [
     {
@@ -12,7 +13,11 @@ import { JwtTokenService } from './jwt-token.service';
       provide: 'IAuthTokenService',
       useClass: JwtTokenService,
     },
+    {
+      provide: 'ITokenHasher',
+      useClass: HmacTokenHasher,
+    },
   ],
-  exports: ['IPasswordHasher', 'IAuthTokenService'],
+  exports: ['IPasswordHasher', 'IAuthTokenService', 'ITokenHasher'],
 })
 export class SecurityModule {}
