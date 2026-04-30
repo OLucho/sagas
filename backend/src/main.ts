@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { MikroORM } from '@mikro-orm/core';
 import { AppModule } from './app.module';
@@ -9,6 +10,7 @@ import { ListNotFoundFilter } from './infrastructure/exceptions/list-not-found.f
 import { ListAccessDeniedFilter } from './infrastructure/exceptions/list-access-denied.filter';
 import { UserNotFoundFilter } from './infrastructure/exceptions/user-not-found.filter';
 import { CollectionCardNotFoundFilter } from './infrastructure/exceptions/collection-card-not-found.filter';
+import { EmailDeliveryFilter } from './infrastructure/exceptions/email-delivery.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -32,6 +34,7 @@ async function bootstrap() {
     new ListAccessDeniedFilter(),
     new UserNotFoundFilter(),
     new CollectionCardNotFoundFilter(),
+    new EmailDeliveryFilter(),
   );
   await app.listen(process.env.PORT ?? 3001);
 }

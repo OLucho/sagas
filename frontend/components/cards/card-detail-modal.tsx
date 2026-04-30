@@ -44,6 +44,24 @@ const VARIANT_CONFIG: Record<
   },
 };
 
+// Type gradient backgrounds — darkened with black overlay for readability
+const TYPE_GRADIENT: Record<string, { from: string; via?: string; to: string }> = {
+  Grass:    { from: "#0a2e18", via: "#0f3d1f", to: "#071f0f" },
+  Fire:     { from: "#2a0f0f", via: "#3d1a0a", to: "#1f0a05" },
+  Water:    { from: "#0a1a3d", via: "#0f2540", to: "#051a2e" },
+  Lightning: { from: "#2a2005", via: "#3d3010", to: "#1a1505" },
+  Electric:  { from: "#2a2005", via: "#3d3010", to: "#1a1505" },
+  Psychic:  { from: "#1f0a3d", via: "#2a104a", to: "#15072e" },
+  Fighting:  { from: "#2a1508", via: "#3d1f0a", to: "#1a0d05" },
+  Darkness:  { from: "#111318", via: "#1a1d24", to: "#0a0c10" },
+  Dark:      { from: "#111318", via: "#1a1d24", to: "#0a0c10" },
+  Metal:     { from: "#15181e", via: "#1e2228", to: "#0f1115" },
+  Fairy:    { from: "#2a0a20", via: "#3d1030", to: "#1f0515" },
+  Dragon:   { from: "#1f0a0a", via: "#2a0a1f", to: "#150510" },
+  Colorless: { from: "#15171c", via: "#1e2025", to: "#0f1015" },
+  Normal:    { from: "#15171c", via: "#1e2025", to: "#0f1015" },
+};
+
 // Simple type icon mapping using colored circles + emoji fallback
 const TYPE_ICON: Record<string, { emoji: string; color: string }> = {
   Grass: { emoji: "🌿", color: "#4ade80" },
@@ -147,12 +165,22 @@ export function CardDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 sm:p-8"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4 sm:p-8"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative my-auto flex w-full max-w-5xl flex-col gap-6 rounded-xl bg-[#1a1d24] p-4 shadow-2xl sm:flex-row sm:p-6">
+      <div
+        className="relative my-auto flex w-full max-w-5xl flex-col gap-6 rounded-xl p-4 shadow-2xl sm:flex-row sm:p-6"
+        style={{
+          background: (() => {
+            const primaryType = card.types?.[0];
+            const g = primaryType ? TYPE_GRADIENT[primaryType] : null;
+            if (!g) return "#1a1d24";
+            return `linear-gradient(135deg, ${g.from} 0%, ${g.via || g.from} 50%, ${g.to} 100%)`;
+          })(),
+        }}
+      >
         {/* Close button */}
         <button
           onClick={onClose}
@@ -161,9 +189,9 @@ export function CardDetailModal({
           <X className="h-5 w-5" />
         </button>
 
-        {/* Left: Card image */}
-        <div className="mx-auto w-full max-w-[340px] shrink-0 sm:mx-0">
-          <div className="relative aspect-[2.5/3.5] w-full overflow-hidden rounded-lg">
+        {/* Left: Card image — centered */}
+        <div className="mx-auto flex w-full max-w-[340px] shrink-0 items-center justify-center sm:mx-0">
+          <div className="relative aspect-[2.5/3.5] w-full overflow-hidden rounded-lg shadow-lg">
             {!imageLoaded && (
               <div className="absolute inset-0 animate-pulse rounded-lg bg-secondary" />
             )}
@@ -187,94 +215,15 @@ export function CardDetailModal({
           {/* Header */}
           <div>
             <h2 className="text-2xl font-bold text-white sm:text-3xl">{card.name}</h2>
-            <div className="mt-1 flex items-center gap-2 text-sm text-slate-400">
+            <div className="mt-1 flex items-center gap-2 text-sm text-white/60">
               {card.set?.name && (
-                <span className="font-medium text-[#3b82f6]">{card.set.name}</span>
+                <span className="font-medium text-white/80">{card.set.name}</span>
               )}
               <span>#{card.number} / {card.set?.printedTotal ?? "?"}</span>
             </div>
           </div>
 
-          {/* Metadata grid */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
-            {metaRows.map((row) => (
-              <div key={row.label}>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{row.label}</p>
-                <div className="mt-0.5 text-sm text-slate-200">{row.value}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Attacks */}
-          {card.attacks && card.attacks.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-white">Attacks</h3>
-              {card.attacks.map((atk, i) => (
-                <div key={i} className="rounded-lg bg-white/5 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-sm font-medium text-white">
-                      {atk.cost.map((c, ci) => {
-                        const icon = TYPE_ICON[c] || { emoji: "⬜", color: "#d1d5db" };
-                        return <span key={ci}>{icon.emoji}</span>;
-                      })}
-                      {atk.name}
-                    </span>
-                    <span className="text-sm font-bold text-white">{atk.damage}</span>
-                  </div>
-                  {atk.text && (
-                    <p className="mt-1 text-xs text-slate-400">{atk.text}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Weakness / Resistance / Retreat */}
-          <div className="flex flex-wrap gap-4 text-sm">
-            {card.weaknesses && card.weaknesses.length > 0 && (
-              <div>
-                <span className="text-xs font-medium uppercase text-slate-500">Weakness</span>
-                <div className="mt-0.5 flex items-center gap-1 text-slate-200">
-                  {card.weaknesses.map((w) => {
-                    const icon = TYPE_ICON[w.type] || { emoji: "⬜", color: "#d1d5db" };
-                    return (
-                      <span key={w.type} className="inline-flex items-center gap-0.5">
-                        <span>{icon.emoji}</span> {w.value}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            {card.resistances && card.resistances.length > 0 && (
-              <div>
-                <span className="text-xs font-medium uppercase text-slate-500">Resistance</span>
-                <div className="mt-0.5 flex items-center gap-1 text-slate-200">
-                  {card.resistances.map((r) => {
-                    const icon = TYPE_ICON[r.type] || { emoji: "⬜", color: "#d1d5db" };
-                    return (
-                      <span key={r.type} className="inline-flex items-center gap-0.5">
-                        <span>{icon.emoji}</span> {r.value}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            {card.retreatCost && card.retreatCost.length > 0 && (
-              <div>
-                <span className="text-xs font-medium uppercase text-slate-500">Retreat</span>
-                <div className="mt-0.5 flex items-center gap-0.5 text-slate-200">
-                  {card.retreatCost.map((rc, i) => {
-                    const icon = TYPE_ICON[rc] || { emoji: "⬜", color: "#d1d5db" };
-                    return <span key={i}>{icon.emoji}</span>;
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Variants with counters */}
+          {/* Variants with counters — in the middle */}
           {availableVariants.length > 0 && isAuthenticated && (
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-white">Variants</h3>
@@ -322,7 +271,7 @@ export function CardDetailModal({
             </div>
           )}
 
-          {/* Read-only variants for non-authenticated */}
+          {/* Read-only variants for non-authenticated — in the middle */}
           {availableVariants.length > 0 && !isAuthenticated && (
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-white">Variants</h3>
@@ -346,6 +295,85 @@ export function CardDetailModal({
               </div>
             </div>
           )}
+
+          {/* Metadata grid */}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+            {metaRows.map((row) => (
+              <div key={row.label}>
+                <p className="text-xs font-medium uppercase tracking-wide text-white/40">{row.label}</p>
+                <div className="mt-0.5 text-sm text-white/80">{row.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Attacks */}
+          {card.attacks && card.attacks.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-white">Attacks</h3>
+              {card.attacks.map((atk, i) => (
+                <div key={i} className="rounded-lg bg-black/20 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-sm font-medium text-white">
+                      {atk.cost.map((c, ci) => {
+                        const icon = TYPE_ICON[c] || { emoji: "⬜", color: "#d1d5db" };
+                        return <span key={ci}>{icon.emoji}</span>;
+                      })}
+                      {atk.name}
+                    </span>
+                    <span className="text-sm font-bold text-white">{atk.damage}</span>
+                  </div>
+                  {atk.text && (
+                    <p className="mt-1 text-xs text-white/50">{atk.text}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Weakness / Resistance / Retreat */}
+          <div className="flex flex-wrap gap-4 text-sm">
+            {card.weaknesses && card.weaknesses.length > 0 && (
+              <div>
+                <span className="text-xs font-medium uppercase text-white/40">Weakness</span>
+                <div className="mt-0.5 flex items-center gap-1 text-white/80">
+                  {card.weaknesses.map((w) => {
+                    const icon = TYPE_ICON[w.type] || { emoji: "⬜", color: "#d1d5db" };
+                    return (
+                      <span key={w.type} className="inline-flex items-center gap-0.5">
+                        <span>{icon.emoji}</span> {w.value}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {card.resistances && card.resistances.length > 0 && (
+              <div>
+                <span className="text-xs font-medium uppercase text-white/40">Resistance</span>
+                <div className="mt-0.5 flex items-center gap-1 text-white/80">
+                  {card.resistances.map((r) => {
+                    const icon = TYPE_ICON[r.type] || { emoji: "⬜", color: "#d1d5db" };
+                    return (
+                      <span key={r.type} className="inline-flex items-center gap-0.5">
+                        <span>{icon.emoji}</span> {r.value}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {card.retreatCost && card.retreatCost.length > 0 && (
+              <div>
+                <span className="text-xs font-medium uppercase text-white/40">Retreat</span>
+                <div className="mt-0.5 flex items-center gap-0.5 text-white/80">
+                  {card.retreatCost.map((rc, i) => {
+                    const icon = TYPE_ICON[rc] || { emoji: "⬜", color: "#d1d5db" };
+                    return <span key={i}>{icon.emoji}</span>;
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

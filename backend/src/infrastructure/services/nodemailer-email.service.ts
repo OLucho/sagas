@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createTransport } from 'nodemailer';
 import { IEmailService } from '../../domain/services/email.service';
+import { EmailDeliveryException } from '../../domain/exceptions/email-delivery.exception';
 
 @Injectable()
 export class NodemailerEmailService implements IEmailService {
@@ -51,7 +52,7 @@ Equipo Sagas`;
       await this.transporter.sendMail({ from, to, subject, text, html });
     } catch (error) {
       this.logger.error('Failed to send password reset email', error);
-      throw error;
+      throw new EmailDeliveryException(error instanceof Error ? error.message : undefined);
     }
   }
 }
