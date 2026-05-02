@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { SqliteDriver } from '@mikro-orm/sqlite';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from './infrastructure/database/database.module';
@@ -10,6 +10,7 @@ import { ListController } from './presentation/controllers/list.controller';
 import { CollectionController } from './presentation/controllers/collection.controller';
 import { AuthController } from './presentation/controllers/auth.controller';
 import { UserController } from './presentation/controllers/user.controller';
+import { HealthController } from './presentation/controllers/health.controller';
 import { CreateListUseCase } from './application/use-cases/lists/create-list/create-list.use-case';
 import { GetUserListsUseCase } from './application/use-cases/lists/get-user-lists/get-user-lists.use-case';
 import { GetListByIdUseCase } from './application/use-cases/lists/get-list-by-id/get-list-by-id.use-case';
@@ -28,22 +29,27 @@ import { RequestPasswordResetUseCase } from './application/use-cases/auth/reques
 import { ResetPasswordUseCase } from './application/use-cases/auth/reset-password/reset-password.use-case';
 import { GetUserByIdUseCase } from './application/use-cases/user/get-user-by-id/get-user-by-id.use-case';
 import { UpdateUserProfileUseCase } from './application/use-cases/user/update-user-profile/update-user-profile.use-case';
-import { DomainExceptionFilter } from './infrastructure/exceptions/domain-exception.filter';
-import { UserAlreadyExistsFilter } from './infrastructure/exceptions/user-already-exists.filter';
-import { ListAlreadyExistsFilter } from './infrastructure/exceptions/list-already-exists.filter';
-import { ListNotFoundFilter } from './infrastructure/exceptions/list-not-found.filter';
-import { ListAccessDeniedFilter } from './infrastructure/exceptions/list-access-denied.filter';
-import { UserNotFoundFilter } from './infrastructure/exceptions/user-not-found.filter';
 
 @Module({
   imports: [
     MikroOrmModule.forRootAsync({
       useFactory: () => ({
-        driver: SqliteDriver,
-        dbName: process.env.DB_NAME || './sagas.sqlite',
+        driver: PostgreSqlDriver,
+        clientUrl: `postgresql://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: process.env.NODE_ENV !== 'production',
         debug: process.env.NODE_ENV !== 'production',
+        ...(process.env.DB_SSL === 'true' && {
+          driverOptions: {
+            connection: {
+              ssl: { rejectUnauthorized: false },
+            },
+          },
+        }),
+        migrations: {
+          path: './src/migrations',
+          pathTs: './src/migrations',
+        },
       }),
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
@@ -51,7 +57,7 @@ import { UserNotFoundFilter } from './infrastructure/exceptions/user-not-found.f
     SecurityModule,
     EmailModule,
   ],
-  controllers: [ListController, CollectionController, AuthController, UserController],
+  controllers: [ListController, CollectionController, AuthController, UserController, HealthController],
   providers: [
     CreateListUseCase,
     GetUserListsUseCase,
@@ -71,12 +77,6 @@ import { UserNotFoundFilter } from './infrastructure/exceptions/user-not-found.f
     ResetPasswordUseCase,
     GetUserByIdUseCase,
     UpdateUserProfileUseCase,
-    DomainExceptionFilter,
-    UserAlreadyExistsFilter,
-    ListAlreadyExistsFilter,
-    ListNotFoundFilter,
-    ListAccessDeniedFilter,
-    UserNotFoundFilter,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

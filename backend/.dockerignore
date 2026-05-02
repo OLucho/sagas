@@ -1,0 +1,7 @@
+﻿node_modules
+dist
+coverage
+*.sqlite
+*.sqlite3
+.git
+.env

@@ -15,12 +15,20 @@ import { EmailDeliveryFilter } from './infrastructure/exceptions/email-delivery.
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const orm = app.get(MikroORM);
-  await orm.getSchemaGenerator().ensureDatabase();
-  await orm.getSchemaGenerator().updateSchema();
+  if (process.env.NODE_ENV !== 'production') {
+    const orm = app.get(MikroORM);
+    await orm.getSchemaGenerator().ensureDatabase();
+    await orm.getSchemaGenerator().updateSchema();
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    const orm = app.get(MikroORM);
+    const migrator = orm.getMigrator();
+    await migrator.up();
+  }
 
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    origin: process.env.CORS_ORIGINS?.split(',').map(o => o.trim()) || ['http://localhost:3000', 'http://localhost:3001'],
     credentials: true,
   });
   app.useGlobalPipes(
