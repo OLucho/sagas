@@ -10,7 +10,7 @@ export class EmailDeliveryFilter implements ExceptionFilter {
 
     response.status(HttpStatus.SERVICE_UNAVAILABLE).json({
       statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-      message: exception.message,
+      message: 'No se pudo enviar el email. Intenta de nuevo mas tarde.',
     });
   }
 }

@@ -21,13 +21,14 @@ export class NodemailerEmailService implements IEmailService {
     this.transporter = createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: Number(process.env.SMTP_PORT) || 587,
-      secure: false,
+      secure: Number(process.env.SMTP_PORT) === 465,
       auth: { user, pass },
     });
   }
 
   async sendPasswordResetCode(to: string, code: string): Promise<void> {
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@sagas.app';
+    const fromEmail = process.env.SMTP_FROM || 'no-reply@sagas.app';
+    const from = `"Sagas" <${fromEmail}>`;
     const subject = 'Sagas — Código de recuperación de contraseña';
     const text = `Hola,
 
@@ -52,7 +53,7 @@ Equipo Sagas`;
       await this.transporter.sendMail({ from, to, subject, text, html });
     } catch (error) {
       this.logger.error('Failed to send password reset email', error);
-      throw new EmailDeliveryException(error instanceof Error ? error.message : undefined);
+      throw new EmailDeliveryException();
     }
   }
 }
