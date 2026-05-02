@@ -1,5 +1,4 @@
-/docs
-*.log
+﻿*.log
 node_modules/
 dist/
 build/
