@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { SqliteDriver } from '@mikro-orm/sqlite';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from './infrastructure/database/database.module';
@@ -33,24 +34,33 @@ import { UpdateUserProfileUseCase } from './application/use-cases/user/update-us
 @Module({
   imports: [
     MikroOrmModule.forRootAsync({
-      useFactory: () => ({
-        driver: PostgreSqlDriver,
-        clientUrl: `postgresql://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
-        autoLoadEntities: true,
-        synchronize: process.env.NODE_ENV !== 'production',
-        debug: process.env.NODE_ENV !== 'production',
-        ...(process.env.DB_SSL === 'true' && {
-          driverOptions: {
-            connection: {
-              ssl: { rejectUnauthorized: false },
+      useFactory: () =>
+        process.env.NODE_ENV === 'production'
+          ? {
+              driver: PostgreSqlDriver,
+              clientUrl: `postgresql://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+              autoLoadEntities: true,
+              synchronize: false,
+              debug: false,
+              ...(process.env.DB_SSL === 'true' && {
+                driverOptions: {
+                  connection: {
+                    ssl: { rejectUnauthorized: false },
+                  },
+                },
+              }),
+              migrations: {
+                path: './src/migrations',
+                pathTs: './src/migrations',
+              },
+            }
+          : {
+              driver: SqliteDriver,
+              dbName: process.env.DB_NAME || './sagas.sqlite',
+              autoLoadEntities: true,
+              synchronize: true,
+              debug: true,
             },
-          },
-        }),
-        migrations: {
-          path: './src/migrations',
-          pathTs: './src/migrations',
-        },
-      }),
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     DatabaseModule,

@@ -33,7 +33,7 @@ services:
       DB_USERNAME: sagas
       DB_PASSWORD: sagas
       DB_NAME: sagas
-      DB_SSL: "true"
+      DB_SSL: "false"
       JWT_SECRET: change-me-in-production
       TOKEN_HASH_SECRET: change-me-in-production
       SMTP_HOST: smtp-relay.brevo.com
