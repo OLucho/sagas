@@ -1,98 +1,159 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Sagas Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS API following Clean Architecture with MikroORM (SQLite for dev, PostgreSQL for prod).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Architecture
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+```
+src/
+├── domain/                        # Pure business logic
+│   ├── entities/                  # User, List, CollectionCard, ListCard, PasswordResetToken
+│   ├── exceptions/                # DomainException + specific exceptions
+│   └── services/                  # Interfaces: IAuthTokenService, IPasswordHasher, ITokenHasher, IEmailService
+├── application/                   # Use cases (one folder per action)
+│   └── use-cases/
+│       ├── auth/                   # sign-up, sign-in, request-password-reset, reset-password
+│       ├── collection/             # get-all-collections, get-collection-by-set, update-card-in-collection, mark-card-as-need
+│       ├── list-cards/             # add-card-to-list, get-list-cards, remove-card-from-list, update-list-card
+│       ├── lists/                  # create-list, delete-list, get-list-by-id, get-user-lists, update-list
+│       └── user/                   # get-user-by-id, update-user-profile
+├── infrastructure/                 # Framework-specific implementations
+│   ├── database/
+│   │   ├── entities/              # MikroORM decorated entities (UserOrmEntity, etc.)
+│   │   ├── mappers/               # Pure functions: Domain ↔ ORM conversion
+│   │   ├── repositories/          # Transaction-aware implementations
+│   │   ├── database.module.ts     # DI wiring
+│   │   └── mikro-orm.config.ts    # CLI config for migrations
+│   ├── exceptions/                # NestJS exception filters (Domain → HTTP mapping)
+│   ├── security/                  # BCryptPasswordHasher, HmacTokenHasher, JwtTokenService
+│   └── services/                  # NodemailerEmailService
+├── presentation/                  # HTTP entry points
+│   ├── controllers/              # AuthController, ListController, CollectionController, UserController, HealthController
+│   └── guards/                    # JwtAuthGuard, OptionalJwtAuthGuard
+├── migrations/                    # MikroORM migration files
+├── app.module.ts                  # Root module (conditional SQLite/PostgreSQL)
+└── main.ts                        # Bootstrap, CORS, filters, migration runner
 ```
 
-## Compile and run the project
+## Key Design Decisions
 
-```bash
-# development
-$ npm run start
+### Dependency Direction
+```
+Presentation → Application → Domain
+Infrastructure → Domain + Application
+```
+The domain never imports anything from outer layers. Application depends only on domain. Infrastructure implements what application declares.
 
-# watch mode
-$ npm run start:dev
+### Domain Entities
+Pure TypeScript classes with:
+- Private constructor (enforce factory methods)
+- `static create()` — validates invariants, throws domain exceptions
+- `static reconstruct()` — rehydrates from persistence, no validation
+- Read-only getters — no public setters, mutation through methods
 
-# production mode
-$ npm run start:prod
+```typescript
+// Example: User entity
+export class User {
+  private constructor(params: ReconstructUserParams) { ... }
+  static create(params: CreateUserParams): User { /* validates */ }
+  static reconstruct(params: ReconstructUserParams): User { /* no validation */ }
+  get id(): string { return this._id; }
+}
 ```
 
-## Run tests
+### Use Cases (One Responsibility Per Folder)
+Each use case folder contains exactly:
+- `{action}-{entity}.use-case.ts` — orchestrates domain logic
+- `{action}-{entity}.request.dto.ts` — input with class-validator decorators
+- `{action}-{entity}.response.dto.ts` — output
+- `interfaces/{action}-{entity}.repository.interface.ts` — scoped repository interface
+- `README.md` — documents inputs, outputs, and side effects
 
-```bash
-# unit tests
-$ npm run test
+### Repository Pattern (Interface Per Use Case)
+Not fat god-repositories. Each use case declares only the methods it needs:
+```typescript
+// ICreateUserRepository — only what SignUpUseCase needs
+export interface ICreateUserRepository {
+  create(user: User): Promise<void>;
+  existsByEmail(email: string): Promise<boolean>;
+}
+```
+Multiple interfaces can share one implementation class, registered via DI tokens.
 
-# e2e tests
-$ npm run test:e2e
+### Database Driver Selection
+Configured by `NODE_ENV`:
+- `development` → SQLite (`./sagas.sqlite`, schema auto-sync)
+- `production` → PostgreSQL (connection via `DB_*` env vars, migrations on startup)
 
-# test coverage
-$ npm run test:cov
+### Transactions
+All write operations in repositories use `em.transactional()`:
+```typescript
+async create(user: User): Promise<void> {
+  return this.em.transactional(async (em) => {
+    const entity = UserMapper.toOrm(user);
+    em.persist(entity);
+    await em.flush();
+  });
+}
 ```
 
-## Deployment
+### Exception Handling Flow
+1. Use case throws a domain exception (e.g. `UserAlreadyExistsException`)
+2. NestJS exception filter catches it (e.g. `UserAlreadyExistsFilter`)
+3. Filter maps to the correct HTTP status (e.g. 409 Conflict)
+4. Internal error details are logged server-side, never exposed to the user
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Security
+- **Passwords**: bcrypt via `IPasswordHasher` (slow, DoS-resistant)
+- **JWT**: Signed via `IAuthTokenService`, verified in guards
+- **Reset tokens**: HMAC-SHA256 via `ITokenHasher` (fast, for short-lived codes)
+- **Rate limiting**: ThrottlerGuard globally (60s/10 req), stricter on auth endpoints
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Running
 
+### Development (SQLite)
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm install
+cp .env.example .env    # set SMTP_* and secrets
+npm run start:dev       # http://localhost:3001
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Production (PostgreSQL via Docker)
+```bash
+docker compose up --build   # from project root
+```
 
-## Resources
+### Tests
+```bash
+npm test          # Unit tests (76 tests)
+npm run test:e2e  # E2E tests
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+### Migrations
+```bash
+# Development: schema auto-sync (no migrations needed)
+# Production: migrations run automatically on startup
+# Manual: npx mikro-orm migration:create
+#         npx mikro-orm migration:up
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Environment Variables
 
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NODE_ENV` | Yes | `development` or `production` |
+| `JWT_SECRET` | Yes | Secret for signing JWT tokens |
+| `TOKEN_HASH_SECRET` | Yes | Secret for hashing reset codes |
+| `SMTP_HOST` | Yes | SMTP server hostname |
+| `SMTP_PORT` | Yes | SMTP port (587 for STARTTLS, 465 for SSL) |
+| `SMTP_USER` | Yes | SMTP username |
+| `SMTP_PASS` | Yes | SMTP password |
+| `SMTP_FROM` | Yes | Sender email address |
+| `CORS_ORIGINS` | No | Comma-separated allowed origins (default: localhost) |
+| `DB_HOST` | Prod | PostgreSQL host |
+| `DB_PORT` | Prod | PostgreSQL port |
+| `DB_USERNAME` | Prod | PostgreSQL user |
+| `DB_PASSWORD` | Prod | PostgreSQL password |
+| `DB_NAME` | Prod | Database name |
+| `DB_SSL` | Prod | `true` for managed PostgreSQL |
+| `PORT` | No | Server port (default: 3001) |
